@@ -12,7 +12,7 @@ published: false
 `useOptimistic` についての記事3本目です。
 
 1. [タップ即反映UIを作った話](https://zenn.dev/ysaya_dev/articles/react-useoptimistic) … `useOptimistic` + `useTransition` でタップ即反映を実装した
-1. [導入して、結局外した話](https://zenn.dev/ysaya_dev/articles/useoptimistic2) … 手動 state 管理との二重カウントにぶつかり、外す判断をした
+2. [導入して、結局外した話](https://zenn.dev/ysaya_dev/articles/useoptimistic2) … 手動 state 管理との二重カウントにぶつかり、外す判断をした
 
 2本目で「Client Component で base state を手動 `setState` 管理すると相性が悪い」と書きました。でも、書いたあとで気持ち悪さが残りました。「同一コミットに乗らないから」と説明したものの、自分でも何が同じコミットに乗らないのか、ちゃんと言葉にできていなかったからです。
 
@@ -50,7 +50,7 @@ startTransition(async () => {
 
 そもそもの話として、`useOptimistic` 自身は第1引数（actual value）を書き換える手段を持っていないことに気づきました。返ってくるのは `[optimisticValue, addOptimistic]` の2つだけで、`addOptimistic` はキューに積むだけ。**actual value を更新する責任は `useOptimistic` の外側にある**わけです。
 
-外側というのは、自分の構成だと `setPitches` のことです。一方、Server Components 構成なら、Server Action が `revalidatePath` を呼んで Server Component を再実行させ、新しい値が props として降ってくる。この場合は自分で `setState` を呼ばない。
+外側というのは、useoptimisticの更新関数の外という意味で、自分の構成だと `setPitches` のことです。一方、これが例えばServer Components 構成なら、Server Action が `revalidatePath` を呼んで Server Component を再実行させ、新しい値が props として降ってくる。この場合は自分で `setState` を呼ばない。
 
 「同じ `useOptimistic` でも、actual value を更新する主体が構成によって違う」。ここが今回の長い回り道の入り口でした。
 
