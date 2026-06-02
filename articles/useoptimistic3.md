@@ -1,10 +1,11 @@
------
-
-## title: “useOptimistic はなぜ手動 state 管理と相性が悪いのか — コミットの分かれ目を追う”
-emoji: “⚾”
-type: “tech”
-topics: [“react”, “nextjs”, “useoptimistic”, “frontend”]
+---
+title: "useOptimistic はなぜ手動 state 管理と相性が悪いのか — コミットの分かれ目を追う"
+emoji: "⚾"
+type: "tech"
+topics: ["react", "nextjs", "useoptimistic", "frontend"]
 published: false
+---
+
 
 ## はじめに
 
