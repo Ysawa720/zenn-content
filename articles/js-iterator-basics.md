@@ -1,10 +1,11 @@
------
-
-## title: “「文字列は配列なの？」という驚きから Symbol.iterator にたどり着くまで”
-emoji: “🔤”
-type: “tech” # tech: 技術記事 / idea: アイデア記事
-topics: [“javascript”, “初心者”, “iterator”, “symbol”]
+---
+title: “「文字列は配列なの？」という驚きから Symbol.iterator にたどり着くまで”
+emoji: "🔤"
+type: "tech"
+topics: ["javascript", "初心者", "iterator", "symbol"]
 published: false
+---
+
 
 ## はじめに
 
