@@ -3,7 +3,7 @@ title: 「文字列は配列なの？」という驚きから Symbol.iterator �
 emoji: "🔤"
 type: "tech"
 topics: ["javascript", "初心者", "iterator", "symbol"]
-published: false
+published: true
 ---
 
 
