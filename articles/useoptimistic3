@@ -10,8 +10,8 @@ published: false
 
 `useOptimistic` についての記事3本目です。
 
-1. [タップ即反映UIを作った話](https://zenn.dev/) … `useOptimistic` + `useTransition` でタップ即反映を実装した
-1. [導入して、結局外した話](https://zenn.dev/) … 手動 state 管理との二重カウントにぶつかり、外す判断をした
+1. [タップ即反映UIを作った話](https://zenn.dev/ysaya_dev/articles/react-useoptimistic) … `useOptimistic` + `useTransition` でタップ即反映を実装した
+1. [導入して、結局外した話](https://zenn.dev/ysaya_dev/articles/useoptimistic2) … 手動 state 管理との二重カウントにぶつかり、外す判断をした
 
 2本目で「Client Component で base state を手動 `setState` 管理すると相性が悪い」と書きました。でも、書いたあとで気持ち悪さが残りました。「同一コミットに乗らないから」と説明したものの、自分でも何が同じコミットに乗らないのか、ちゃんと言葉にできていなかったからです。
 
