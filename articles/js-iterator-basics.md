@@ -225,12 +225,6 @@ Symbol("desc") === Symbol("desc")   // false（説明が同じでも別物）
 内部的には「内容」ではなく「**一意な実体としての同一性（参照的な比較）**」で識別され、メモリ上の具体的な表現は仕様未規定でエンジン依存です。
 だからこそ「他の誰とも衝突しない鍵」として使えて、`Symbol.iterator` のような well-known symbol が「唯一の共有鍵」として機能するわけです。
 
-例外として `Symbol.for()` は、グローバルレジストリ経由でキー文字列に同じ実体を紐づけます。
-
-```js
-Symbol.for("x") === Symbol.for("x") // true（レジストリ経由なので同一）
-```
-
 > JavaScript のプリミティブ型は全7種：`string` / `number` / `boolean` / `bigint` / `undefined` / `null` / `symbol`。`symbol` だけ「一意性」という他にない性質を持っているのが面白いところです。
 
 ### このコードの本質を一言で
