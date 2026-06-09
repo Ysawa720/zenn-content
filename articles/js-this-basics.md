@@ -1,8 +1,11 @@
+---
 title: "JavaScriptのthisが分からなくなる原因は「外側」の意味だった"
 emoji: "🎯"
 type: "tech"
 topics: ["javascript", "this", "アロー関数", "初心者"]
 published: false
+---
+
 
 はじめに
 JavaScript を学んでいて、多くの人がつまずくのが this です。私自身、setTimeout の中で this.name が undefined になる定番のバグに出会い、「なぜアロー関数で直るのか」をきちんと言葉にできずモヤモヤしていました。
