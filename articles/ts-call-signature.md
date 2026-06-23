@@ -3,7 +3,7 @@ title: "なぜinterfaceで関数型を書けるのか — call signatureと「�
 emoji: "🔧"
 type: "tech"
 topics: ["typescript", "javascript"]
-published: false
+published: true
 ---
 
 ## はじめに
