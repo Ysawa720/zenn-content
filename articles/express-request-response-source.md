@@ -64,7 +64,7 @@ function createApplication() {
 
 この `mixin()` 2行が、ほぼ空の関数だった `app` を「Expressのapp」に組み立てている。それぞれ役割が違う。
 
-`mixin()` は `merge-descriptors` というライブラリの関数で、シグネチャは `mixin(dest, src, redefine)`。コピー先（`dest`）にコピー元（`src`）のプロパティを混ぜ込むヘルパーで、第3引数 `false` は「既存の同名プロパティがあれば上書きしない」指定。
+`mixin()` は `merge-descriptors` というライブラリの関数で、シグネチャは `mixin(dest, src, redefine)`。コピー先（`dest`）にコピー元（`src`）のプロパティを混ぜ込むヘルパー（特定の小さな作業を代行してくれる、補助的な役割の関数）で、第3引数 `false` は「既存の同名プロパティがあれば上書きしない」指定。
 
 `Object.assign` と決定的に違うのは、単純な値コピーではなく**プロパティディスクリプタごとコピーする**点。`getOwnPropertyDescriptor` で `get`/`set`/`writable` などの設定を丸ごと取り出して `defineProperty` で定義し直すので、**getter/setter もそのまま移植できる**。`Object.assign` だと getter は評価された「値」になってしまうため、ここが効いてくる（前述の遅延生成getterのような仕組みを壊さずに混ぜられる）。
 
