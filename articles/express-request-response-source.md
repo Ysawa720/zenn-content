@@ -51,7 +51,7 @@ function createApplication() {
     app.handle(req, res, next);
   };
   mixin(app, EventEmitter.prototype, false);
-  mixin(app, proto, false); // proto = npmでインストールされるExpressパッケージの１つであるapplication.jsから受け取ったメソッド群のオブジェクト（`.get()` や `.use()`などが含まれている）
+  mixin(app, proto, false); // proto = npmでインストールされるExpressパッケージの1つ application.js から受け取ったメソッド群のオブジェクト（.get() や .use() などが含まれる）
   return app;
 }
 ```
@@ -67,6 +67,29 @@ function createApplication() {
 `mixin()` は `merge-descriptors` というライブラリの関数で、シグネチャは `mixin(dest, src, redefine)`。コピー先（`dest`）にコピー元（`src`）のプロパティを混ぜ込むヘルパー（特定の小さな作業を代行してくれる、補助的な役割の関数）で、第3引数 `false` は「既存の同名プロパティがあれば上書きしない」指定。
 
 `Object.assign` と決定的に違うのは、単純な値コピーではなく**プロパティディスクリプタごとコピーする**点。`getOwnPropertyDescriptor` で `get`/`set`/`writable` などの設定を丸ごと取り出して `defineProperty` で定義し直すので、**getter/setter もそのまま移植できる**。`Object.assign` だと getter は評価された「値」になってしまうため、ここが効いてくる（前述の遅延生成getterのような仕組みを壊さずに混ぜられる）。
+
+#### そもそもプロパティディスクリプタとは
+
+さらっと「ディスクリプタごとコピー」と書いたが、そもそもプロパティディスクリプタ（property descriptor）とは、あるプロパティが持つ「値」以外のメタ情報（付加設定）をまとめたオブジェクトのこと。普段は意識しないが、普通にプロパティを書くだけで裏側で自動的に付与されている。
+
+```js
+const obj = { name: "太郎" };
+```
+
+この `name` には、裏でこういう設定が付いている。
+
+```js
+{
+  value: "太郎",       // 実際の値
+  writable: true,      // 値を書き換え可能か
+  enumerable: true,    // for...inやObject.keys()で列挙されるか
+  configurable: true,  // 削除や再定義が可能か
+}
+```
+
+この4つ組がディスクリプタで、実際に `Object.getOwnPropertyDescriptor(obj, "name")` で覗ける。getter/setterの場合は `value`/`writable` の代わりに `get`/`set` 関数が入る。
+
+ここが `mixin` の肝につながる。`Object.assign` はコピー元の**「値」だけ**をコピーするので、コピー元がgetterだと**その瞬間の計算結果の値**だけが渡り、「アクセスするたびに再計算される」というgetter本来の仕組みは失われる。一方 `mixin`（`merge-descriptors`）は `getOwnPropertyDescriptor` で `get` 関数そのものを含むディスクリプタ一式を取り出し、`defineProperty` で再定義するので、**getterの仕組みごと丸ごと移植できる**。前述の `app.router` のような遅延生成getterを壊さず混ぜられるのは、これが理由だった。
 
 2行の役割分担はこう。
 
@@ -127,7 +150,39 @@ Object.defineProperty(this, 'router', {
 
 #### `app.router` は「値」ではなく「アクセサプロパティ」
 
-ここで一つ勘違いしそうになった。「`app.router` に `{ get: getrouter }` というオブジェクトが格納されている」と読んでしまいそうになるが、そうではない。`descriptor`（`{ get: ... }`）は **`app.router` に入る値ではなく、「`app.router` をどう振る舞わせるか」の設定書**だ。
+その前に、`get`/`set`（getter/setter）そのものを押さえておく。これは、プロパティを**読むとき・書くときに裏で自動的に走る関数**のこと。普通のプロパティが読み書き＝「値の出し入れ」だけなのに対し、そこに関数を割り込ませられる。
+
+```js
+const obj = {
+  firstName: "太郎",
+  lastName: "山田",
+  get fullName() {           // 読まれたら走る
+    return this.lastName + this.firstName;
+  },
+  set fullName(value) {      // 書き込まれたら走る
+    [this.lastName, this.firstName] = value.split(" ");
+  }
+};
+
+obj.fullName;             // → "山田太郎"（get関数の戻り値）
+obj.fullName = "鈴木 一郎"; // → set関数が走り、lastName/firstNameに分解代入
+```
+
+ポイントは、**見た目は普通のプロパティアクセスと同じ**で、`()` を書かずに自然に扱えること。getterは読まれた瞬間に実行され戻り値がプロパティの値になり、setterは代入された瞬間に実行され代入値が引数で渡る。「プロパティのフリをして裏で処理を挟める」ので、計算値を返したり、代入値を検証したり、**アクセスされた瞬間に初めて用意したり**（＝まさに `app.router` の遅延生成）ができる。
+
+なお、`get` という語は「プロパティ名」でも「関数名」でもなく、**「これはgetterだ」と示すキーワード**だという点に注意。`get fullName() {}` は「`fullName` というプロパティをgetter方式で定義する」構文で、`get` と `fullName` は無関係（たまたま似ているわけでもない）。そしてこの省略記法は、`defineProperty` の `{ get: function(){} }` を短く書ける糖衣構文にすぎない。
+
+```js
+// 省略記法
+const obj = { get fullName() { return ...; } };
+
+// defineProperty版（同じこと）
+Object.defineProperty(obj, 'fullName', { get: function() { return ...; } });
+```
+
+キーワードの `get` も、ディスクリプタのキー `get` も、同じ「getter方式を指定するラベル」を指している。`getrouter` のような関数名の方は、デバッグ時のスタックトレース表示などのために付けるだけで、省略記法とは無関係（`get: function() {}` と無名でも動く）。
+
+これを踏まえて本題に戻る。ここで一つ勘違いしそうになった。「`app.router` に `{ get: getrouter }` というオブジェクトが格納されている」と読んでしまいそうになるが、そうではない。`descriptor`（`{ get: ... }`）は **`app.router` に入る値ではなく、「`app.router` をどう振る舞わせるか」の設定書**だ。
 
 JavaScriptのプロパティは大きく2種類ある。
 
@@ -227,7 +282,7 @@ res.json = function json(obj) {
 
 `this.end(chunk)` の `chunk` は**本文だけ**。だが実際にネットワークを流れるのは、レスポンス全体だ。
 
-```
+```text
 HTTP/1.1 400 Bad Request          ← statusCode から Node.js が自動生成
 Content-Type: application/json     ← res.json() が設定
 Content-Length: 98                 ← res.send() が設定
@@ -244,7 +299,7 @@ Access-Control-Allow-Origin: *     ← cors() が設定
 
 ここまでを1本につなぐ。
 
-```
+```text
 【初期化】express()でapp生成
         → app.use()を呼ぶたび app.router(遅延生成)の stack配列にLayerをpush
         → Firebase CLIがapi（トリガー）を発見（stackの中身は未解析）
