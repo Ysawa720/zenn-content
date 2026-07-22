@@ -51,7 +51,7 @@ function createApplication() {
     app.handle(req, res, next);
   };
   mixin(app, EventEmitter.prototype, false);
-  mixin(app, proto, false); // proto = application.js のメソッド群
+  mixin(app, proto, false); // proto = npmでインストールされるExpressパッケージの１つであるapplication.jsから受け取ったメソッド群のオブジェクト（`.get()` や `.use()`などが含まれている）
   return app;
 }
 ```
