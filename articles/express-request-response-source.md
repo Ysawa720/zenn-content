@@ -295,6 +295,36 @@ Access-Control-Allow-Origin: *     ← cors() が設定
 
 ここで最初の結論に戻る。**各Expressメソッドは、Node.js標準の `res` という箱に書き込むためのラッパー**であり、蓄積先は終始 `http.ServerResponse` だった。
 
+## ファイル構成の全体像
+
+ここまで各ファイルを個別に追ってきたが、整理すると3層構造になっている。
+
+| ファイル | 役割 |
+|---|---|
+| `lib/express.js` | アプリの骨格生成。素の `app` 関数を作り、`mixin` で機能を組み付ける入口 |
+| `lib/application.js` | `app` の各メソッド定義（`app.use` / `app.listen` など）と `app.router` のgetter定義 |
+| `node_modules/router/index.js` | 実際のルーティングとミドルウェアスタック（`router.stack`）の管理 |
+
+それぞれの関係はこうなっている。
+
+```
+express.js
+  └─ createApplication()
+       ├─ var app = fn() { app.handle() }   // 素の関数
+       ├─ mixin(app, EventEmitter.prototype) // Node標準イベント機能を付与
+       └─ mixin(app, proto)                 // application.js のメソッド群を付与
+            │
+            └─ application.js（proto の実体）
+                 ├─ app.use / app.get / app.listen など
+                 └─ app.router（getter）
+                      │
+                      └─ router/index.js（Router() の実体）
+                           ├─ router 関数（router.handle() に委譲）
+                           └─ router.stack[]（ミドルウェアの登録先）
+```
+
+`app.router` は `application.js` で定義されたgetterだが、中身では `router/index.js` の `Router()` に処理を委譲しているだけ。そして `Router()` の構造は `app` と**まったく同じパターン**（関数 + handle委譲 + stack配列）の入れ子になっている。
+
 ## 全体の流れ（POST /signup を例に）
 
 ここまでを1本につなぐ。
