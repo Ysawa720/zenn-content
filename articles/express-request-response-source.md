@@ -238,6 +238,54 @@ Expressのルーティングは「上から順に照合して、最初に一致�
 
 「登録順に走査」という挙動の裏付けが、`stack = []` という一行にあった、というのが個人的に一番腑に落ちたポイントだった。
 
+## `handle()` は `stack` をどう走査するのか
+
+ここまでで「`stack` にLayerが積まれる」ことは分かった。では、リクエストが来たとき、その `stack` は**誰が・どうやって**上から照合するのか。ここまで何度も出てきた `handle()` の中身がそれで、記事の前半では「丸投げする窓口」としか触れていなかったので、ここで開けてみる。
+
+委譲の連鎖を関数レベルまで解像度を上げると、こうなっている。
+
+```text
+app(req, res)                         [express.js]  ★トリガー1
+  → app.handle(req, res, done)        [application.js]
+    → this.router.handle(req, res, done)
+       （this === app。「app.handle(...)」というメソッド呼び出しの形なので
+         this が app に束縛される → this.router は app 専用のRouter）
+      → router.handle(req, res, callback)   [router/index.js]
+         → next() ループで stack を上から走査
+           → layer.handleRequest(req, res, next)   [layer.js]
+             → fn(req, res, next)  ← 自分で書いたミドルウェア/ハンドラ本体
+           （fn が next() を呼ぶたび上の next へ戻り、次の layer へ進む）
+         → 全部終わる/マッチしなくなったら done() = finalhandler でレスポンス終了
+```
+
+ポイントが3つある。
+
+**① `this` が `app` になるのは呼び出し方のため**。`app.handle(...)` という「ドットの左が `app`」の形で呼ばれるので、`this` が `app` に束縛される。だから `this.router` はそのapp専用のRouterを指す。これは記事の前半で見た「`this` は定義場所ではなく呼び出され方で決まる」というルールの、そのままの適用例だった。
+
+**② `next()` は「次の layer へ進めるボタン」**。`router.handle` の中に、`stack` を走査する `next` 関数がある。これが呼ばれるたびに内部の添字（`idx`）が1つ進み、次の `layer` を照合しにいく。記事の前半で `next` を「次へ進むボタン」と書いたが、その実体はこの「添字を進めてループを再開させる関数」だった。
+
+**③ だから `next()` を呼ばないと、リクエストは止まる**。`layer.js` の該当箇所を見ると、Layerは自分で書いた `fn` を `fn(req, res, next)` と呼ぶだけで、あとは呼びっぱなしになっている。
+
+```js
+Layer.prototype.handleRequest = function handleRequest (req, res, next) {
+  const fn = this.handle;         // ← 自分のミドルウェア
+  // ...
+  const ret = fn(req, res, next); // ← 呼ぶだけ。next() は fn の中で呼ぶ責任
+  // ...
+};
+```
+
+`fn` の中で `next()` を呼ばない限り、`idx` は進まず、走査ループは再開されず、`done()`（＝`finalhandler`、レスポンスを閉じる処理）にも到達しない。結果、リクエストは宙ぶらりんのまま止まり、クライアントはタイムアウトまで待たされる。ミドルウェア開発でハマりやすいバグの筆頭がこれだった。
+
+ただし、`next()` を呼ばないケースが全部バグというわけではない。区別はこうなる。
+
+- **バグ**：`next()` も `res.json()`/`res.end()` も呼ばない → 応答も継続もされずハング。
+- **正常**：`res.json({...})` などでレスポンスを確定させて終える → そのリクエストはそこで完結するので `next()` は不要。
+
+記事の冒頭で見た `validateSignupRequest` の「エラー時は `next()` を呼ばず `res.status(400).json()` で打ち切る」は、まさに後者の正常パターンだった。応答を確定させているからチェーンを止めてよい。逆に、応答も `next()` も無ければ止まる——という対比で、`next()` の役割が腑に落ちた。
+
+なお細かい点だが、`router.handle` の実体は `Router.prototype.handle` にプロトタイプメソッドとして定義されている。呼び出しは `router.handle(...)` というインスタンス経由でも、中身の定義はプロトタイプ側にある、という「呼び出し（instance）」と「定義場所（prototype）」の分離も、ここで確認できた。
+
 ## `res` は「空箱」ではなく「最初から道具が揃ったオブジェクト」
 
 最初、`res` を「レスポンスがこれから格納される空の箱」だと思っていた。だがミドルウェアが受け取った時点で、すでに `.status()` や `.json()` が使える。
